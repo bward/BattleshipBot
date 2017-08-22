@@ -16,17 +16,8 @@ namespace BattleshipBot
         {
             lastTarget = null; // Forget all our history when we start a new game
             rng = new Random();
-            while (true)
-            {
-                var shipPositions = InsertRandomShip(5, new List<IShipPosition>());
-                shipPositions = InsertRandomShip(4, shipPositions);
-                shipPositions = InsertRandomShip(3, shipPositions);
-                shipPositions = InsertRandomShip(3, shipPositions);
-                shipPositions = InsertRandomShip(2, shipPositions);
-                if (shipPositions == null)
-                    continue;
-                return shipPositions;
-            }
+            return InsertRandomShips(new List<int> {5, 4, 3, 3, 2}, new List<IShipPosition>());
+ 
         }
 
         public IGridSquare SelectTarget()
@@ -48,11 +39,22 @@ namespace BattleshipBot
 
         public string Name => "Das Bot";
 
-        private IEnumerable<IShipPosition> InsertRandomShip(int length, IEnumerable<IShipPosition> shipPositions)
+        private IEnumerable<IShipPosition> InsertRandomShips(IReadOnlyCollection<int> lengths, IEnumerable<IShipPosition> shipPositions)
         {
             if (shipPositions == null)
                 return null;
+
             var positionList = shipPositions.ToList();
+
+            if (lengths.Count > 1)
+            {
+                var output = InsertRandomShips(lengths.Take(1).ToList(), InsertRandomShips(lengths.Skip(1).ToList(), positionList));
+                if (output == null)
+                    return InsertRandomShips(lengths, positionList);
+                return output;
+            }
+
+            var length = lengths.First();
             for (var i = 0; i < 20; i++)
             {
                 var horizontal = rng.Next(0, 2);
