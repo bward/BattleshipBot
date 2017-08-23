@@ -9,27 +9,51 @@ namespace BattleshipBot
     public class DasBot : IBattleshipsBot
     {
         private const string Rows = "ABCDEFGHIJ";
-        private IGridSquare lastTarget;
         private Random rng;
+        private List<IGridSquare> firingStack;
+        private HashSet<IGridSquare> firedSquares;
+
+        public DasBot()
+        {
+            firedSquares = new HashSet<IGridSquare>();
+            rng = new Random();
+            firingStack = new List<IGridSquare>();
+            for (var i = 0; i < 10; i++)
+            for (var j = 1; j < 11; j += 2)
+                firingStack.Add(new GridSquare(Rows[i], j + i % 2));
+
+            firingStack = firingStack.OrderBy(item => rng.Next()).ToList();
+            
+        }
 
         public IEnumerable<IShipPosition> GetShipPositions()
-        {
-            lastTarget = null; // Forget all our history when we start a new game
-            rng = new Random();
+        { 
             return InsertRandomShips(new List<int> {5, 4, 3, 3, 2}, new List<IShipPosition>());
- 
         }
 
         public IGridSquare SelectTarget()
         {
-            var nextTarget = GetNextTarget();
-            lastTarget = nextTarget;
-            return nextTarget;
+            var target = firingStack.Last();
+            firingStack.RemoveAt(firingStack.Count - 1);
+            return target;
         }
 
         public void HandleShotResult(IGridSquare square, bool wasHit)
         {
-            // Ignore whether we're successful
+            firedSquares.Add(square);
+            if (wasHit)
+            {
+                var newTargets = NeighbourhoodGridSquares(new ShipPosition(square, square), 1)
+                    .Where(neighbour => (neighbour.Column + Rows.IndexOf(neighbour.Row)) % 2 !=
+                                        (square.Column + Rows.IndexOf(square.Row)) % 2)
+                    .Where(neighbour => !firedSquares.Contains(neighbour));
+                foreach (var target in newTargets)
+                {
+                    firingStack.RemoveAll(s => s.Equals(target));
+                    firingStack.Add(target);
+                }
+            }
+
         }
 
         public void HandleOpponentsShot(IGridSquare square)
@@ -95,21 +119,5 @@ namespace BattleshipBot
             return new ShipPosition(new GridSquare(startRow, startColumn), new GridSquare(endRow, endColumn));
         }
 
-        private IGridSquare GetNextTarget()
-        {
-            if (lastTarget == null)
-                return new GridSquare('A', 1);
-
-            var row = lastTarget.Row;
-            var col = lastTarget.Column + 1;
-            if (lastTarget.Column != 10)
-                return new GridSquare(row, col);
-
-            row = (char) (row + 1);
-            if (row > 'J')
-                row = 'A';
-            col = 1;
-            return new GridSquare(row, col);
-        }
     }
 }
